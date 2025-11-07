@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minesweeper</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    background: #eee;
+  }
+  #board {
+    display: grid;
+    margin: 20px auto;
+    gap: 2px;
+    background: #444;
+  }
+  .cell {
+    width: 30px;
+    height: 30px;
+    background: #ccc;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  .cell.revealed {
+    background: #fff;
+    cursor: default;
+  }
+  .cell.mine {
+    background: red;
+    color: white;
+  }
+  .cell.flagged {
+    background: #ccc;
+    color: blue;
+  }
+  #controls {
+    margin-top: 10px;
+  }
+  button#newGame {
+    padding: 8px 16px;
+    font-size: 16px;
+    cursor: pointer;
+    border: none;
+    background: #007bff;
+    color: white;
+    border-radius: 5px;
+  }
+  button#newGame:hover {
+    background: #0056b3;
+  }
+</style>
+</head>
+<body>
+
+<h1>💣 Minesweeper</h1>
+<p id="status">Left click = reveal, Right click = flag</p>
+<div id="controls">
+  <button id="newGame">🔄 New Game</button>
+</div>
+<div id="board"></div>
+
+<script>
+const rows = 8;
+const cols = 8;
+const mineCount = 10;
+
+let board = [];
+let minePositions = [];
+let revealedCount = 0;
+let gameOver = false;
+
+function initGame() {
+  // Reset variables
+  board = [];
+  minePositions = [];
+  revealedCount = 0;
+  gameOver = false;
+  
+  const status = document.getElementById('status');
+  status.textContent = 'Left click = reveal, Right click = flag';
+
+  // Clear old board
+  const boardElement = document.getElementById('board');
+  boardElement.innerHTML = '';
+  boardElement.style.gridTemplateColumns = `repeat(${cols}, 30px)`;
+
+  // Generate new mines
+  while (minePositions.length < mineCount) {
+    const pos = Math.floor(Math.random() * rows * cols);
+    if (!minePositions.includes(pos)) minePositions.push(pos);
+  }
+
+  // Build grid
+  for (let r = 0; r < rows; r++) {
+    board[r] = [];
+    for (let c = 0; c < cols; c++) {
+      const cell = document.createElement('button');
+      cell.classList.add('cell');
+      const id = r * cols + c;
+      cell.dataset.id = id;
+      board[r][c] = cell;
+      boardElement.appendChild(cell);
+
+      cell.addEventListener('click', () => revealCell(r, c));
+      cell.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        toggleFlag(r, c);
+      });
+    }
+  }
+}
+
+function toggleFlag(r, c) {
+  if (gameOver) return;
+  const cell = board[r][c];
+  if (cell.classList.contains('revealed')) return;
+  
+  if (cell.classList.contains('flagged')) {
+    cell.classList.remove('flagged');
+    cell.textContent = '';
+  } else {
+    cell.classList.add('flagged');
+    cell.textContent = '🚩';
+  }
+}
+
+function revealCell(r, c) {
+  if (gameOver) return;
+  const cell = board[r][c];
+  if (cell.classList.contains('revealed') || cell.classList.contains('flagged')) return;
+
+  cell.classList.add('revealed');
+  revealedCount++;
+  
+  const id = r * cols + c;
+  if (minePositions.includes(id)) {
+    cell.classList.add('mine');
+    cell.textContent = '💣';
+    endGame(false);
+    return;
+  }
+
+  const count = countMinesAround(r, c);
+  if (count > 0) {
+    cell.textContent = count;
+  } else {
+    // Reveal neighbors automatically
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        const nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+          revealCell(nr, nc);
+        }
+      }
+    }
+  }
+
+  checkWin();
+}
+
+function countMinesAround(r, c) {
+  let count = 0;
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      const nr = r + dr, nc = c + dc;
+      if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+        const id = nr * cols + nc;
+        if (minePositions.includes(id)) count++;
+      }
+    }
+  }
+  return count;
+}
+
+function revealAll() {
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const cell = board[r][c];
+      const id = r * cols + c;
+      cell.classList.add('revealed');
+      if (minePositions.includes(id)) {
+        cell.classList.add('mine');
+        cell.textContent = '💣';
+      } else {
+        const count = countMinesAround(r, c);
+        if (count > 0) cell.textContent = count;
+      }
+    }
+  }
+}
+
+function checkWin() {
+  const totalCells = rows * cols;
+  if (revealedCount === totalCells - mineCount) {
+    endGame(true);
+  }
+}
+
+function endGame(won) {
+  gameOver = true;
+  revealAll();
+  const status = document.getElementById('status');
+  status.textContent = won ? '🎉 You Win!' : '💥 Game Over!';
+}
+
+document.getElementById('newGame').addEventListener('click', initGame);
+
+initGame(); // Start first game
+</script>
+</body>
+</html>
